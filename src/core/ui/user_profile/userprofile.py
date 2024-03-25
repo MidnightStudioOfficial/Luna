@@ -159,7 +159,7 @@ class ProfileClass(ctk.CTkFrame):
         # Add the badges to the badges frame
         for badge_path in self.badge_images:
             badge = Image.open(badge_path)
-            badge = badge.resize((30, 30), Image.ANTIALIAS)
+            badge = badge.resize((30, 30), Image.LANCZOS)
             badge = ImageTk.PhotoImage(badge)
 
             badge_label = ctk.CTkLabel(self.badges_frame, image=badge, text="")

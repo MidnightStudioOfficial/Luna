@@ -21,9 +21,6 @@ else:
 from os.path import isfile
 import logging
 import json
-print('Importing chatterbot')
-from chatterbot2 import ChatBot as CHATBOT
-from chatterbot2.trainers import ChatterBotCorpusTrainer
 print("Importing DONE")
 
 
@@ -96,35 +93,13 @@ class Chatbot:
     def __init__(self, splash_screen) -> None:
         # Initialize the conversational engine and conversation
         splash_screen.set_text("Initializing the conversational engine and conversation")
-        if UseEngine2 == True:
-            self.engine = Engine2()
-        else:
-            self.engine = ConversationalEngine(lemmatize_data=True, filepath=trainingdata, modelpath=None)
-            self.currentConversation = Conversation(engine=self.engine, articulationdata=articulationdata)
-
-        # Check if the chatbot database exists
-        self.chatbot_exists = None
-        if isfile("./db.sqlite3") == False:
-            logging.debug("chatbot_exists is False")
-            self.chatbot_exists = False
-        else:
-            logging.debug("chatbot_exists is True")
-            self.chatbot_exists = True
-
-        # Initialize the chatbot and trainer
-        splash_screen.set_text("Initializing the chatbot and trainer")
-        self.chatBot = CHATBOT("Chatbot") #, tagger_language=self.nlp
-        self.trainer = ChatterBotCorpusTrainer(self.chatBot)
-
+        
+        self.engine = Engine2()
     def train_bot(self) -> None:
         """
         Train the chatbot if it doesn't already exist.
         """
         logging.debug("Training bot")
-        if self.chatbot_exists == False:
-            self.trainer.train("./Data/training/export.json")
-            self.trainer.train("./Data/training/messages.json")
-
     def get_skill(self, input_text) -> bool:
         """
         Check if the input is a skill.
@@ -151,12 +126,8 @@ class Chatbot:
             str: The response from the conversational engine or chatbot.
         """
         # Get a response from the conversational engine or chatbot
-        if UseEngine2 == True:  # Checking if Engine2 is being used
-            payload = self.engine.getIntent(input_text) # Get the intent from Engine2 based on the input
-            response = payload.get('intent') # Extract the intent from the payload
-        else:
-            payload = self.currentConversation.interact(input_text, returnPayload=True)
-            response = payload.get('articulation')
+        payload = self.engine.getIntent(input_text) # Get the intent from Engine2 based on the input
+        response = payload.get('intent') # Extract the intent from the payload
 
         is_skill = self.get_skill(response)  # Check if the response is a skill using the get_skill method
         if is_skill: # If it's a skill
