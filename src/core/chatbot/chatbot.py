@@ -9,15 +9,10 @@ It is recommended to review the required data files, ensure proper file paths, a
 """
 
 Debug = False
-UseEngine2 = True
 
-if UseEngine2 == True:
-    print('Importing engine2 (This may take a while!)')
-    from core.engine.Engine2 import Engine2
-else:
-    print('Importing engine (This may take a while!)')
-    from core.engine.Engine import ConversationalEngine
-    from core.engine.Conversation import Conversation
+
+print('Importing engine2 (This may take a while!)')
+from core.engine.Engine2 import Engine2
 from os.path import isfile
 import logging
 import json

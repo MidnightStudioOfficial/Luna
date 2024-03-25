@@ -13,7 +13,7 @@ from core.ui.loadingscreen import SplashScreen
 if __name__ == '__main__':
     """
     Main entry point of the program.
-    This script creates a GUI for the Ava Chatbot application with a splash screen that shows a loading progress.
+    This script creates a GUI for the Luna LLM application with a splash screen that shows a loading progress.
     """
     image_path = join(dirname(realpath(__file__)), "Data/assets")
 
@@ -25,10 +25,10 @@ if __name__ == '__main__':
     # Create and configure the splash screen
     splash_screen = SplashScreen(root)
     splash_screen.overrideredirect(True)
-    splash_screen.set_text("Creating Ava and training")
+    splash_screen.set_text("Creating Luna and training")
     splash_screen.set_progress(50)
 
-    print('Creating Ava and training')
+    print('Creating Luna and training')
 
     # Create the ChatBotGUI object
     gui = ChatBotGUI(root, splash_screen, image_path)

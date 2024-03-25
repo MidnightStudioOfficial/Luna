@@ -4,7 +4,7 @@ global ENGINE_probability_matrix
 global TOOLTIP_MESSAGES, STYLES_LIST
 global VOICE_DEFAULT_SETTINGS
 
-WAKE_WORD = "ava"
+WAKE_WORD = "luna"
 VOICE_DEFAULT_SETTINGS = {
     'voice_id': 2,
     'rate': 150,

@@ -6,46 +6,20 @@ import logging
 from PIL import Image, ImageTk, ImageDraw
 from threading import Thread
 
-print("Importing skills_page")
+
 from core.ui.skills.skills_page import SkillGUI
-
-print("Importing music")
 from core.ui.music import Sounder
-
-print("Importing profile_controller")
 from core.controllers.profile.profile import Profile
-
-print("Importing Debug")
 from core.base.debug import DebugGUI
-
-print("Importing CTkScrollableDropdown")
 from core.ui.widgets.CTkScrollableDropdown.ctk_scrollable_dropdown import CTkScrollableDropdown
-
-print("Importing CTkToolTip")
 from core.ui.widgets.CTkToolTip.ctk_tooltip import CTkToolTip
-
-print("Importing ctk_xyframe")
 from core.ui.widgets.ctk_xyframe import CTkXYFrame
-
-print("Importing win_style")
 from core.ui.utils.win_style import *
-
-print("Importing weather")
 from core.ui.weather.weather import WeatherGUI
-
-print("Importing global_vars")
 from core.base.global_vars import *
-
-print("Importing wake_word")
 from core.voice.wake_word import WakeWord
-
-print("Importing WakeWordGUI")
 from core.ui.wakeword.wakeword3 import WakeWordGUI
-
-print("Importing MessagesController")
 from core.controllers.messages.messages import MessagesController
-
-print("Importing debugergui")
 from core.TkDeb.TkDeb import Debugger
 
 if DEBUG_CHATBOT is None or DEBUG_CHATBOT is True: 
@@ -155,7 +129,7 @@ class ChatBotGUI:
         ]
 
         # Create the navigation frame label
-        self.navigation_frame_label = ctk.CTkLabel(self.navigation_frame, text="  Ava", image=self.logo_image,
+        self.navigation_frame_label = ctk.CTkLabel(self.navigation_frame, text="  Luna", image=self.logo_image,
                                                 compound="left", font=ctk.CTkFont(size=15, weight="bold"))
         self.navigation_frame_label.grid(row=0, column=0, padx=20, pady=20)
 
@@ -220,7 +194,7 @@ class ChatBotGUI:
         for widget, row in widgets:
             widget.grid(row=row, column=0, padx=20, pady=10)
 
-        version_button = ctk.CTkButton(master, text="V0.3.1", width=96, command=self.debug_click)
+        version_button = ctk.CTkButton(master, text="V0.0.1", width=96, command=self.debug_click)
         version_button.grid(sticky="se", column=1)
 
         self.current_chat_bubble = False
@@ -509,7 +483,7 @@ class ChatBotGUI:
             splash_screen.set_text("Set up voice")
             self.engine = pyttsx3_init()
             self.voices = self.engine.getProperty('voices')
-            self.engine.setProperty('voice', self.voices[2].id)  # Index 1 for female voice
+            self.engine.setProperty('voice', self.voices[1].id)  # Index 1 for female voice
             self.engine.setProperty('rate', 150)  # Adjust rate to 150 words per minute
             self.engine.setProperty('volume', 0.7)  # Adjust volume to 70% of maximum
             self.engine.setProperty('pitch', 110)  # Adjust pitch to 110% of default

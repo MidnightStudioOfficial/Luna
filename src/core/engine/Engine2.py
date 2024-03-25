@@ -50,6 +50,15 @@ class Engine2():
         filepath: str | the path to the .csv file containing the training data
         modelpath str, optional | the path to the .p file containing a pickled model you wish to use. If passed, will use that model instead of retraining from the training data. This leads to faster instantiation.
         """
+        # Define parameters
+        self.max_len = 25
+
+        # Load built-in skills for the engine
+        self.skills = BuiltinSkills()
+
+        # Load the spaCy language model for natural language processing
+        self.nlp = spacy_load("en_core_web_sm")
+
         if os.path.exists('Data/sir-bot-a-lot.brain') and os.path.exists('Data/tokenizer.pickle') and os.path.exists('Data/label_encoder.pickle'):
             # Load the pre-trained model and associated objects
             self.model = keras.models.load_model('Data/sir-bot-a-lot.brain')
@@ -90,14 +99,6 @@ class Engine2():
             self.stop_words_eng.remove("what")
             self.train2()
 
-        # Define parameters
-        self.max_len = 25
-
-        # Load built-in skills for the engine
-        self.skills = BuiltinSkills()
-
-        # Load the spaCy language model for natural language processing
-        self.nlp = spacy_load("en_core_web_sm")
 
     def getIntent(self, utterance):
         """

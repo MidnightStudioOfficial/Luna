@@ -4,8 +4,6 @@ from .utils.sentiment_analyzer import SentimentAnalyzer
 from .model import Model
 from os.path import isfile
 import logging
-from chatterbot2 import ChatBot as CHATBOT
-from chatterbot2.trainers import ChatterBotCorpusTrainer
 from .chatbot.chatbot import Chatbot
 
 
@@ -39,18 +37,6 @@ class Conversation():
         self.model = Model()
         self.gpt_chatbot = Chatbot()
 
-        # Check if the chatbot database exists
-        self.chatbot_exists = None
-        if isfile("./db.sqlite3") == False:
-            logging.debug("chatbot_exists is False")
-            self.chatbot_exists = False
-        else:
-            logging.debug("chatbot_exists is True")
-            self.chatbot_exists = True
-
-        # Initialize the chatbot and trainer
-        self.chatBot = CHATBOT("Chatbot")
-        self.trainer = ChatterBotCorpusTrainer(self.chatBot)
 
         self.train_bot()
 
@@ -59,10 +45,6 @@ class Conversation():
         Train the chatbot if it doesn't already exist.
         """
         logging.debug("Training bot")
-        if self.chatbot_exists == False:
-            self.trainer.train("./Data/training/export.json")
-            self.trainer.train("./Data/training/messages.json")
-
     def get_skill(self, input_text) -> bool:
         """
         Check if the input is a skill.
