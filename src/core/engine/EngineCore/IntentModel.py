@@ -32,11 +32,13 @@ from keras.preprocessing.sequence import pad_sequences  # Padding sequences for 
 # PyTorch libraries
 import torch
 from torch import nn
+import torch.optim as optim
 from torch.nn import functional as F
 from torch.utils.data import Dataset, DataLoader, TensorDataset
 from torch.optim import Adam
 from torchtext.vocab import build_vocab_from_iterator
 from torchtext.data.utils import get_tokenizer
+import numpy as np
 
 
 # Third-party library
@@ -47,27 +49,33 @@ from nltk.stem import PorterStemmer  # PorterStemmer for word stemming (reducing
 # Local import
 from core.skill.bulitin_skills import BuiltinSkills  # Custom built-in skills for the conversational engine
 
+class IntentDataset(Dataset):
+    def __init__(self, sequences, labels):
+        self.sequences = sequences
+        self.labels = torch.tensor(labels, dtype=torch.long)  # Convert labels to torch.long
+        
+    def __len__(self):
+        return len(self.sequences)
+    
+    def __getitem__(self, idx):
+        return torch.tensor(self.sequences[idx]), self.labels[idx]
 
-# Define PyTorch model architecture
-class IntentClassifier(nn.Module):
+class NeuralNetwork(nn.Module):
     def __init__(self, vocab_size, embedding_dim, num_classes):
-        super().__init__()
-        self.device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+        super(NeuralNetwork, self).__init__()
         self.embedding = nn.Embedding(vocab_size, embedding_dim)
-        self.pool = nn.AdaptiveAvgPool1d(1)
+        self.pooling = nn.AdaptiveAvgPool1d(1)
         self.fc1 = nn.Linear(embedding_dim, 128)
         self.fc2 = nn.Linear(128, 32)
         self.fc3 = nn.Linear(32, num_classes)
-
-    def forward(self, text):
-        device = next(self.parameters()).device  # Get device of the first parameter
-        text = text.to(device)  # Ensure text is on the same device as the model
-        embedded = self.embedding(text)
-        pooled = self.pool(embedded).squeeze(1)
-        output = F.relu(self.fc1(pooled))
-        output = F.relu(self.fc2(output))
-        output = self.fc3(output)
-        return output
+        
+    def forward(self, x):
+        embedded = self.embedding(x)
+        pooled = self.pooling(embedded.permute(0, 2, 1)).squeeze(2)
+        x = torch.relu(self.fc1(pooled))
+        x = torch.relu(self.fc2(x))
+        x = torch.softmax(self.fc3(x), dim=1)
+        return x
 
 # This class defines a conversational engine that can predict the intent of an utterance using a neural network.
 class IntentModel():
@@ -104,34 +112,18 @@ class IntentModel():
         self.stop_words_eng.remove("what")
 
         if os.path.exists('Data/sir-bot-a-lot.brain') and os.path.exists('Data/tokenizer.pickle') and os.path.exists('Data/label_encoder.pickle'):
-            # Load the pre-trained model and associated objects
-            self.model = keras.models.load_model('Data/sir-bot-a-lot.brain')
+            self.model = torch.load('Data/sir-bot-a-lot.brain')
             with open('Data/tokenizer.pickle', 'rb') as handle:
                 self.tokenizer = pickle.load(handle)
             with open('Data/label_encoder.pickle', 'rb') as enc:
                 self.label_encoder = pickle.load(enc)
         else:
-            # Set up data preprocessing and train the model
-            self.testing = [
-                "what do you want to do?",
-                "I am board",
-                "What is your favorite holiday?",
-                "hi",
-                "can you tell me a joke"
-            ]
-            self.testing2 = [
-                "what do you want to do?",
-                "I am board",
-                "What is your favorite holiday?",
-                "hi",
-                "can you tell me a joke",
-                "can you get the weather",
-
-                "can you play me some music"
-            ]
-
+            self.testing = ["what do you want to do?", "I am bored", "What is your favorite holiday?", "hi", "can you tell me a joke"]
+            self.testing2 = ["what do you want to do?", "I am bored", "What is your favorite holiday?", "hi", "can you tell me a joke", "can you get the weather", "can you play me some music"]
+            self.wordnet_lemmatizer = WordNetLemmatizer()
+            self.stop_words_eng = set(stopwords.words('english'))
+            self.stop_words_eng.remove("what")
             self.train2()
-
 
     def getIntent(self, utterance):
         """
@@ -145,43 +137,16 @@ class IntentModel():
                   'intent' (str): The predicted intent.
                   'probability' (float): The probability score for the predicted intent.
         """
-        # Preprocess the utterance
-        preprocessed_s = self.preprocess_sentence2(utterance)
-        
-        # Convert to tensor and pad
-        text = torch.tensor(self.tokenizer.texts_to_sequences([preprocessed_s])).to(self.device)
-        padded_text = F.pad(text, (0, self.max_len - text.shape[1]), value=0)
-
-        # Predict the intent
-        #self.model.eval()  # Set model to evaluation mode
-        with torch.no_grad():
-            output = self.model(padded_text)
-            probs = F.softmax(output, dim=1)  # Calculate probabilities
-            predicted_intent_idx = torch.argmax(probs).item()  # Get index of predicted intent
-
-        # Convert prediction to human-readable intent
-        predicted_intent = self.label_encoder.inverse_transform([predicted_intent_idx])[0]
-        # TODO: Only the max probability intent is returned. It may be wise to have a skill 'unknown' based on some probability.
-
-        # Initialize standard set of parameters for skill parsing
-        params = {'intentCheck': predicted_intent, 'skills': self.skills.skills}
-
-        # Get the corresponding skill based on the predicted intent
-        skill = self.skills.skills[predicted_intent[0]]
-
-        # Parse entities from the utterance using spaCy
+        result = self.model(torch.tensor(self.tokenizer.texts_to_sequences([utterance])))
+        tag = self.label_encoder.inverse_transform([torch.argmax(result).item()])
+        params = {'intentCheck': tag, 'skills': self.skills.skills}
+        skill = self.skills.skills[tag[0]]
         params |= skill.parseEntities(self.nlp(utterance))
-
-        # Get the response from the skill based on the parsed entities
         response = skill.actAndGetResponse(**params)
-        print(response)
-
-        # Return the predicted intent and associated probabilities.
-        return {
-            'intent': response,
-           # 'probability': np_max(result)
-        }
-
+        # For PyTorch tensors:
+        max_probability, _ = torch.max(result, dim=1)
+        print(response + " " + str(max_probability.item()))
+        return {'intent': response, 'probability': max_probability}
     def preprocess_sentence(self, sentence):
         sentence = sentence.lower()
         punctuations = "?:!.,;'`´"
@@ -238,135 +203,86 @@ class IntentModel():
         return " ".join(stemmed_sentence)
 
     def train2(self):
-        """
-        Train the neural network model for intent classification.
-
-        This method performs the following steps:
-        1. Load skill sample data.
-        2. Preprocess the training data (lemmatization).
-        3. Encode the labels using LabelEncoder.
-        4. Prepare the data for training, validation, and testing using train_test_split.
-        5. Define the neural network model architecture.
-        6. Train the model using early stopping.
-        7. Evaluate the model on the test set.
-        8. Save the trained model and tokenizer for later use.
-        """
         print("Loading all skills...")
         s = self.skills
-
-        # Load skill sample data
         training_sentences = []
         training_labels = []
         labels = []
-
         for intent, skill in s.skills.items():
             for sample in skill.samples:
                 training_sentences.append(sample)
                 training_labels.append(intent)
             if intent not in labels:
                 labels.append(intent)
-
         num_classes = len(labels)
-
-        # Lemmatization for training data
-        lemmatized_training_sentences = [self.preprocess_sentence2(sentence) for sentence in training_sentences]
-
-        # Label Encoding and Magic Constants
+        lemmatized_training_sentences = [self.preprocess_sentence(sentence) for sentence in training_sentences]
         lbl_encoder = LabelEncoder()
         lbl_encoder.fit(training_labels)
         training_labels = lbl_encoder.transform(training_labels)
-
-        vocab_size = 2000  # Vocabulary size for the Tokenizer
-        embedding_dim = 62  # Dimension of word embeddings
-        max_len = 25  # Maximum length of input sequences
-        oov_token = "<OOV>"  # Out-of-vocabulary token for the Tokenizer
-
-        # Initialize a Tokenizer object with vocabulary size and OOV token
-        tokenizer = Tokenizer(num_words=vocab_size, oov_token=oov_token)
-
-        # Fit the Tokenizer on lemmatized training sentences to build the word-to-index mapping
+        vocab_size = 2000
+        embedding_dim = 62
+        max_len = 25
+        tokenizer = Tokenizer(num_words=vocab_size, oov_token="<OOV>")
         tokenizer.fit_on_texts(lemmatized_training_sentences)
-
-        # Get the word index, which maps each word in the vocabulary to a unique index
         word_index = tokenizer.word_index
-
-        # Convert lemmatized training sentences to sequences of integers based on the tokenizer's word-to-index mapping
         sequences = tokenizer.texts_to_sequences(lemmatized_training_sentences)
-
-        # Pad the sequences to ensure they have the same length (max_len) for neural network input
         padded_sequences = pad_sequences(sequences, truncating='post', maxlen=max_len)
-
-        # Split data into training, validation, and test sets
-        X_train, X_temp, y_train, y_temp = train_test_split(padded_sequences, array(training_labels), test_size=0.2, random_state=42)
+        X_train, X_temp, y_train, y_temp = train_test_split(padded_sequences, np.array(training_labels), test_size=0.2, random_state=42)
         X_val, X_test, y_val, y_test = train_test_split(X_temp, y_temp, test_size=0.5, random_state=42)
-
-        # Instantiate model, optimizer, and loss function
-        model = IntentClassifier(vocab_size, embedding_dim, num_classes).to(self.device)
-        optimizer = Adam(model.parameters())
+        dataset_train = IntentDataset(X_train, y_train)
+        dataset_val = IntentDataset(X_val, y_val)
+        dataset_test = IntentDataset(X_test, y_test)
+        dataloader_train = DataLoader(dataset_train, batch_size=32, shuffle=True)
+        dataloader_val = DataLoader(dataset_val, batch_size=32)
+        dataloader_test = DataLoader(dataset_test, batch_size=32)
+        model = NeuralNetwork(vocab_size, embedding_dim, num_classes)
         criterion = nn.CrossEntropyLoss()
-
-        # Prepare data for training and validation
-        train_dataset = TensorDataset(torch.tensor(X_train), torch.tensor(y_train))
-        val_dataset = TensorDataset(torch.tensor(X_val), torch.tensor(y_val))
-        train_loader = DataLoader(train_dataset, batch_size=32)
-        val_loader = DataLoader(val_dataset, batch_size=32)
-
-        # Train the model
-        epochs = 1000
-        best_val_loss = float('inf')
-
+        optimizer = optim.Adam(model.parameters())
+        epochs = 10000 #1000
         for epoch in range(epochs):
-            model.train()  # Set model to training mode
-
-            train_loss = 0
-            train_acc = 0
-
-            for batch in train_loader:
-                text, text_lengths = batch#.text
-                optimizer.zero_grad()  # Clear gradients
-                predictions = model(text).squeeze(1)  # Forward pass
-                loss = criterion(predictions, batch.label)  # Calculate loss
-                acc = (predictions.argmax(1) == batch.label).float().mean()  # Calculate accuracy
-                loss.backward()  # Backpropagation
-                optimizer.step()  # Update model parameters
-
-                train_loss += loss.item()
-                train_acc += acc.item()
-
-            # Evaluate on validation set
-            model.eval()  # Set model to evaluation mode
-            val_loss = 0
-            val_acc = 0
-
+            model.train()
+            for inputs, labels in dataloader_train:
+                optimizer.zero_grad()
+                outputs = model(inputs)
+                loss = criterion(outputs, labels)
+                loss.backward()
+                optimizer.step()
+            model.eval()
+            val_loss = 0.0
+            val_accuracy = 0.0
             with torch.no_grad():
-                for batch in val_loader:
-                    text, text_lengths = batch.text
-                    predictions = model(text).squeeze(1)
-                    loss = criterion(predictions, batch.label)
-                    acc = (predictions.argmax(1) == batch.label).float().mean()
+                for inputs, labels in dataloader_val:
+                    outputs = model(inputs)
+                    val_loss += criterion(outputs, labels).item()
+                    val_accuracy += (torch.argmax(outputs, dim=1) == labels).float().mean().item()
+                val_loss /= len(dataloader_val)
+                val_accuracy /= len(dataloader_val)
+                print(f"Epoch {epoch+1}/{epochs}, Validation Loss: {val_loss:.4f}, Validation Accuracy: {val_accuracy:.4f} Loss: {loss:.4f}")
+        test_loss = 0.0
+        test_accuracy = 0.0
+        model.eval()
+        with torch.no_grad():
+            for inputs, labels in dataloader_test:
+                outputs = model(inputs)
+                test_loss += criterion(outputs, labels).item()
+                test_accuracy += (torch.argmax(outputs, dim=1) == labels).float().mean().item()
+                test_loss /= len(dataloader_test)
+            test_accuracy /= len(dataloader_test)
+            print(f"Test Loss: {test_loss:.4f}, Test Accuracy: {test_accuracy:.4f}")
+        torch.save(model, "Data/sir-bot-a-lot.brain")
+        with open('Data/tokenizer.pickle', 'wb') as handle:
+            pickle.dump(tokenizer, handle, protocol=pickle.HIGHEST_PROTOCOL)
+        with open('Data/label_encoder.pickle', 'wb') as ecn_file:
+            pickle.dump(lbl_encoder, ecn_file, protocol=pickle.HIGHEST_PROTOCOL)
+        print("Model trained and saved.")
+        self.model = model
+        self.tokenizer = tokenizer
 
-                    val_loss += loss.item()
-                    val_acc += acc.item()
+    def preprocess_sentence2(self, sentence):
+        sentence = sentence.lower()
+        punctuations = "?:!.,;'`´"
+        sentence_words = word_tokenize(sentence)
+        stemmed_sentence = [self.porter_stemmer.stem(word) for word in sentence_words if word not in self.stop_words_eng and word not in punctuations]
+        return " ".join(stemmed_sentence)
 
-            # Calculate average loss and accuracy
-            train_loss /= len(train_loader)
-            train_acc /= len(train_loader)
-            val_loss /= len(val_loader)
-            val_acc /= len(val_loader)
-
-            # Print statistics
-            print(f'Epoch: {epoch+1:03}, Train Loss: {train_loss:.4f}, Train Acc: {train_acc:.4f}, Val. Loss: {val_loss:.4f}, Val. Acc: {val_acc:.4f}')
-
-            # Early stopping
-            if val_loss < best_val_loss:
-                best_val_loss = val_loss
-                torch.save(model.state_dict(), "Data/sir-bot-a-lot.brain")  # Save best model
-
-
-        # Perform testing on some sample sentences
-        print("\nTesting: ")
-        for s in self.testing2:
-            preprocessed_s = self.preprocess_sentence2(s)
-            result = self.model.predict(pad_sequences(self.tokenizer.texts_to_sequences([preprocessed_s]), truncating='post', maxlen=max_len))
-            intent = self.label_encoder.inverse_transform([argmax(result)])
-            print(s + " --> " + str(intent[0]))
+  
