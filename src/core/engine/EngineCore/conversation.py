@@ -1,7 +1,8 @@
 from .utils.referring import ReferencingClassifier
 from .response_selector import ResponseMatcher
 from .utils.sentiment_analyzer import SentimentAnalyzer
-from .model import Model
+#from .model import Model
+from .IntentModel import IntentModel as Model
 from os.path import isfile
 import logging
 from .chatbot.chatbot import Chatbot
@@ -77,7 +78,7 @@ class Conversation():
 
         # If the intent is unknown, use the Model to make a prediction.
         if virtual_assistant_data["intent"] == 'unknown_intent':
-            resalt = self.model.predict(text=utterance)
+            resalt = self.model.getIntent(utterance)
             is_skill = self.get_skill(resalt["intent"])  # Check if the response is a skill using the get_skill method
 
             # If it's a skill, return the response.

@@ -1,3 +1,5 @@
+import nltk
+nltk.download('vader_lexicon')
 from .conversation import Conversation
 import logging
 

@@ -22,6 +22,8 @@ from core.ui.wakeword.wakeword3 import WakeWordGUI
 from core.controllers.messages.messages import MessagesController
 from core.TkDeb.TkDeb import Debugger
 
+from core.engine.EngineCore import engine
+
 if DEBUG_CHATBOT is None or DEBUG_CHATBOT is True: 
     print('Importing pyttsx3')
     from pyttsx3 import init as pyttsx3_init
@@ -505,8 +507,9 @@ class ChatBotGUI:
         if DEBUG_CHATBOT is None or DEBUG_CHATBOT is True:
             # Initialize chatbot
             splash_screen.set_text("Training the chatbot")
-            self.chatbot = Chatbot(splash_screen)
-            self.chatbot.train_bot()  # Train the chatbot
+            self.chatbot = engine.MainEngine()
+            #self.chatbot = Chatbot(splash_screen)
+            #self.chatbot.train_bot()  # Train the chatbot
 
         if DEBUG_CHATBOT is None or DEBUG_CHATBOT is True:
             self.MessagesController = MessagesController(

@@ -12,7 +12,7 @@ Debug = False
 
 
 print('Importing engine2 (This may take a while!)')
-from core.engine.Engine2 import Engine2
+from core.engine.EngineCore import conversation as Engine2
 from os.path import isfile
 import logging
 import json

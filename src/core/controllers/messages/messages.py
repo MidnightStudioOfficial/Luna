@@ -33,7 +33,7 @@ class MessagesController:
         self.AITaskStatusLbl.configure(text="    Working")
         if DEBUG_CHATBOT == None or DEBUG_CHATBOT == True:
             # Get response from chatbot and add to chat history
-            bot_response = self.chatbot.get_response(user_message)
+            bot_response = self.chatbot.getIntent(user_message) #self.chatbot.get_response(user_message)
             self.add_to_chat_history("ChatBot: " + str(bot_response), True)
 
             # Use text-to-speech engine to speak the bot response
