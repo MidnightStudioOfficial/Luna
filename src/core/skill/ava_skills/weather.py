@@ -13,7 +13,10 @@ class WeatherSkill(BaseSkill):
             "tell me the waether",
             "what is the weather",
             "get the weather",
-            "give me the weather"
+            "give me the weather",
+            "what's the weather",
+            "tell me about the weather",
+            "what's the weather like",
         ]
 
     def actAndGetResponse(self, **kwargs) -> str:

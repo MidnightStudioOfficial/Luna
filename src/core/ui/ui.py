@@ -35,6 +35,9 @@ print("Importing DONE")
 
 logging.basicConfig(level=logging.INFO)
 
+# Disable debug messages from comtypes
+logging.getLogger("comtypes").setLevel(logging.INFO)
+
 
 ### SWITCHING BETWEEN FRAMES ###
 def raise_frame(frame):

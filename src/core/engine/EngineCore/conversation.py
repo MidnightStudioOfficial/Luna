@@ -56,7 +56,7 @@ class Conversation():
         Returns:
             bool: True if the input is a skill, False otherwise.
         """
-        if input_text != "CHAT":
+        if input_text != "ava_skills.chat":
             return True
         else:
             return False
@@ -83,6 +83,7 @@ class Conversation():
 
             # If it's a skill, return the response.
             if is_skill:
+                logging.debug("Skill identified reponce: " + resalt['response'])
                 logging.debug("Skill identified: " + resalt['intent'])
                 return resalt['intent'] + str(" " + self.bot_emoji)
 

@@ -11,7 +11,13 @@ class JokeSkill(BaseSkill):
             "joke",
             "tell me a joke",
             "i want to laugh",
-            "tell me something funny"
+            "tell me something funny",
+            "i want to hear a joke",
+            "i want a joke",
+            "joke please",
+            "tell me a joke please",
+            "i want to hear something funny",
+            "i want to hear something funny please",
         ]
 
     def actAndGetResponse(self, **kwargs) -> str:

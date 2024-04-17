@@ -11,7 +11,13 @@ class MusicSkill(BaseSkill):
         self.active = True
         self.samples = [
             "could you please play some music",
-            "play music"
+            "play music",
+            "music",
+            "music please",
+            "i want to listen to music",
+            "play some music",
+            "i want to hear some music",
+            "i want to hear some music please",
         ]
 
     def actAndGetResponse(self, **kwargs) -> str:

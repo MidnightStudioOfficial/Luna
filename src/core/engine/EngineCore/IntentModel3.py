@@ -65,6 +65,8 @@ class IntentDataset(Dataset):
     def __getitem__(self, idx):
         return torch.tensor(self.sequences[idx]), self.labels[idx]
 
+
+
 import torchtext.vocab as vocab
 import torch
 import torch.nn as nn
@@ -84,8 +86,10 @@ class NeuralNetwork2(nn.Module):
         logits = self.fc1(pooled_output)
         return logits
 
-from ncps.wirings import AutoNCP
-from ncps.torch import LTC
+
+import torch
+import torch.nn as nn
+from transformers import BertModel, BertTokenizer
 
 class NeuralNetwork(nn.Module):
     def __init__(self, num_classes, bert_finetune=False):
@@ -94,33 +98,45 @@ class NeuralNetwork(nn.Module):
         if not bert_finetune:
             for param in self.bert.parameters():
                 param.requires_grad = False
+        
+        self.lstm = nn.LSTM(input_size=768, hidden_size=256, num_layers=2, bidirectional=True, batch_first=True)
         self.dropout = nn.Dropout(0.1)
-        lstm_hidden_size = 256 #512
-        self.lstm = nn.LSTM(768, lstm_hidden_size, batch_first=True)
-        self.drop = nn.Dropout(p=0.3) #0.5
-        self.flatten = nn.Flatten()
-        wiring = AutoNCP(lstm_hidden_size, 100)
-        self.ltc = LTC(lstm_hidden_size, wiring, batch_first=True)
-        self.fc2 = nn.Linear(100, 256)
-        self.fc1 = nn.Linear(256, num_classes)
+        self.conv1d = nn.Conv1d(in_channels=1, out_channels=256, kernel_size=3)
+        self.maxpool = nn.MaxPool1d(kernel_size=2)
+        self.fc1 = nn.Linear(512, num_classes)
 
     def forward(self, input_ids, attention_mask):
         outputs = self.bert(input_ids=input_ids, attention_mask=attention_mask)
         pooled_output = outputs.pooler_output
-        pooled_output = self.dropout(pooled_output)
-        lstm_out, _ = self.lstm(pooled_output.unsqueeze(1))
-        #lstm_out = lstm_out[:, -1, :]
-        lstm_out = self.drop(lstm_out)
-        flattened = lstm_out[:, -1, :]
-        x, _ = self.ltc(flattened)
-        x = self.fc2(x)
-        logits = self.fc1(x)
+
+        # LSTM
+        lstm_output, _ = self.lstm(pooled_output.unsqueeze(1))  # Add a dimension for the channel
+        lstm_output = lstm_output.squeeze(1)  # Remove the added channel dimension
+        lstm_output = self.dropout(lstm_output)
+
+        # CNN
+        cnn_input = pooled_output.unsqueeze(1)  # Add a dimension for the channel
+        cnn_output = self.conv1d(cnn_input)
+        cnn_output = self.maxpool(cnn_output)
+        cnn_output = self.dropout(cnn_output.squeeze(-1))
+
+        # Concatenate LSTM and CNN outputs
+        combined_output = torch.cat((lstm_output, cnn_output), dim=1)
+
+        logits = self.fc1(combined_output)
         return logits
+
 
 # This class defines a conversational engine that can predict the intent of an utterance using a neural network.
 class IntentModel():
     # The constructor takes in several optional arguments to customize the behavior of the engine.
     def __init__(self, lemmatize_data=True, filepath=None, modelpath=None):
+        """
+        app: any object | usually the chatbot object
+        lemmatize_data: bool | True includes lemmatization, False excludes it
+        filepath: str | the path to the .csv file containing the training data
+        modelpath str, optional | the path to the .p file containing a pickled model you wish to use. If passed, will use that model instead of retraining from the training data. This leads to faster instantiation.
+        """
         # Define parameters
         self.max_len = 25
 
@@ -133,38 +149,65 @@ class IntentModel():
         self.device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
         # WordNetLemmatizer is used to reduce words to their base or root form (lemmas).
+        # It helps to normalize different forms of a word, such as plurals or verb conjugations, to a common base form.
         self.wordnet_lemmatizer = WordNetLemmatizer()
 
-        # Initialize the set of English stopwords
+        # Create an instance of the PorterStemmer class for stemming words.
+        # The PorterStemmer is used to reduce words to their base or root form, which can help in information retrieval or text analysis tasks.
+        self.porter_stemmer = PorterStemmer()
+
+        # Initialize the set of English stopwords, which are common words that are usually removed from text during preprocessing.
+        # Stopwords are words like "the", "and", "is", "are", etc., that do not contribute much to the meaning of the text.
         self.stop_words_eng = set(stopwords.words('english'))
         self.stop_words_eng.remove("what")
 
         # Load pre-trained model and tokenizer
+        print(os.path.realpath('Data/intent_model'))
         if os.path.exists('Data/intent_model') and os.path.exists('Data/label_encoder.pickle'):
             # Load pre-trained model and tokenizer
-            self.model = NeuralNetwork(num_classes=10)  # Assuming 10 classes
-            self.model.load_state_dict(torch.load('Data/intent_model'))  # Load model state
-            self.tokenizer = BertTokenizer.from_pretrained('bert-base-uncased')
+            self.model = BertForSequenceClassification.from_pretrained('Data/intent_model')
+            self.tokenizer = BertTokenizer.from_pretrained('Data/intent_model')
             with open('Data/label_encoder.pickle', 'rb') as enc:
                 self.label_encoder = pickle.load(enc)
         else:
-            self.train()
+            self.testing = ["what do you want to do?", "I am bored", "What is your favorite holiday?", "hi", "can you tell me a joke"]
+            self.testing2 = ["what do you want to do?", "I am bored", "What is your favorite holiday?", "hi", "can you tell me a joke", "can you get the weather", "can you play me some music"]
+            self.wordnet_lemmatizer = WordNetLemmatizer()
+            self.stop_words_eng = set(stopwords.words('english'))
+            self.stop_words_eng.remove("what")
+            self.train2()
 
     def getIntent(self, utterance: str):
+        """
+        Predicts the intent of an utterance using the BERT-based model.
+
+        Parameters:
+            utterance (str): The utterance entered by the user.
+
+        Returns:
+            dict: A dictionary containing the following key-value pairs:
+                'intent' (str): The predicted intent.
+                'probability' (float): The probability score for the predicted intent.
+        """
+        # Tokenize the utterance
         inputs = self.tokenizer(utterance, padding=True, truncation=True, return_tensors="pt")
         input_ids = inputs['input_ids']
         attention_mask = inputs['attention_mask']
 
-        with torch.no_grad():
-            logits = self.model(input_ids, attention_mask)
-            probabilities = torch.softmax(logits, dim=1)
-            max_probability, predicted_label = torch.max(probabilities, dim=1)
+        # Get predictions from the model
+        result = self.model(input_ids, attention_mask)
+        probabilities = torch.softmax(result.logits, dim=1)
+        max_probability, predicted_label = torch.max(probabilities, dim=1)
 
+        # Decode the predicted label
         predicted_label = predicted_label.item()
         predicted_intent = self.label_encoder.inverse_transform([predicted_label])[0]
 
+        # Get additional information from the skill associated with the predicted intent
         skill = self.skills.skills[predicted_intent]
         entities = skill.parseEntities(self.nlp(utterance))
+
+        # Generate response based on predicted intent and entities
         response = skill.actAndGetResponse(intentCheck=[predicted_intent], skills=self.skills.skills, **entities)
 
         return {'intent': predicted_intent, 'probability': max_probability.item(), 'response': response}
@@ -224,12 +267,13 @@ class IntentModel():
         # Return the preprocessed sentence as a string
         return " ".join(stemmed_sentence)
 
-    def train(self):
+    def train2(self):
         print("Loading all skills...")
         s = self.skills
         training_sentences = []
         training_labels = []
         labels = []
+        
 
         for intent, skill in s.skills.items():
             for sample in skill.samples:
@@ -242,7 +286,7 @@ class IntentModel():
 
         # Load BERT tokenizer and model
         tokenizer = BertTokenizer.from_pretrained('bert-base-uncased')
-        model = NeuralNetwork(num_classes=num_classes, bert_finetune=True)
+        model = BertForSequenceClassification.from_pretrained('bert-base-uncased', num_labels=len(labels))
 
         # Tokenize training data
         sentences = [sample for skill in s.skills.values() for sample in skill.samples]
@@ -251,10 +295,11 @@ class IntentModel():
 
         self.label_encoder = LabelEncoder()
         self.label_encoder.fit(labels)
-        labels = torch.tensor(self.label_encoder.transform(labels), dtype=torch.long).to(self.device)
+        #labels = torch.tensor([self.label_encoder.transform([label])[0] for label in labels])
+        labels = torch.tensor(self.label_encoder.transform(labels), dtype=torch.long)
 
         # Create TensorDataset and DataLoader
-        dataset = TensorDataset(inputs['input_ids'].to(self.device), inputs['attention_mask'].to(self.device), labels)
+        dataset = TensorDataset(inputs['input_ids'], inputs['attention_mask'], labels)
         dataloader = DataLoader(dataset, sampler=RandomSampler(dataset), batch_size=32)
 
         # Define optimizer and loss function
@@ -262,32 +307,30 @@ class IntentModel():
         criterion = nn.CrossEntropyLoss()
 
         # Train the model
-        model.to(self.device)
         model.train()
-        for epoch in range(400):  # Adjust the number of epochs as needed 5
+        for epoch in range(400):  # Adjust the number of epochs as needed 5 10000
             total_loss = 0
             for batch in dataloader:
                 optimizer.zero_grad()
-                #input_ids, attention_mask, labels = batch
-                input_ids, attention_mask, labels = [t.to(self.device) for t in batch]
-                outputs = model(input_ids=input_ids, attention_mask=attention_mask)
-                loss = criterion(outputs, labels)
+                input_ids, attention_mask, labels = batch
+                outputs = model(input_ids=input_ids, attention_mask=attention_mask, labels=labels)
+                loss = outputs.loss
                 total_loss += loss.item()
                 loss.backward()
                 optimizer.step()
             avg_loss = total_loss / len(dataloader)
-            print(f"Epoch {epoch+1}/{5}, Average Loss: {avg_loss:.4f}")
+            print(f"Epoch {epoch+1}/{5}, Average Loss: {avg_loss:.4f}, Total Loss: {total_loss:.4f}")
 
         print("Model trained.")
 
         # Save the trained model
-        torch.save(model.state_dict(), "Data/intent_model.pth")
+        model.save_pretrained("Data/intent_model")
         tokenizer.save_pretrained("Data/intent_model")
         with open('Data/label_encoder.pickle', 'wb') as ecn_file:
             pickle.dump(self.label_encoder, ecn_file, protocol=pickle.HIGHEST_PROTOCOL)
         self.model = model
         self.tokenizer = tokenizer
-
+        #self.label_encoder = label_encoder
 
     def preprocess_sentence2(self, sentence):
         sentence = sentence.lower()
