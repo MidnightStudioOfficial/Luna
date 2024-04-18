@@ -218,7 +218,7 @@ class MainGUI(FluentWindow):
         self.initNavigation()
         self.initWindow()
 
-              
+        #setTheme(theme=Theme.DARK, lazy=True)
 
         if DEBUG_CHATBOT is None or DEBUG_CHATBOT is True:
             if DEBUG_GUI is False:
@@ -302,14 +302,14 @@ class MainGUI(FluentWindow):
     def initWindow(self):
         self.resize(900, 700)
         #self.setWindowIcon(QIcon(':/qfluentwidgets/images/logo.png'))
-        self.setWindowTitle('PyQt-Fluent-Widgets')
+        self.setWindowTitle('Luna')
 
         desktop = QApplication.screens()[0].availableGeometry()
         w, h = desktop.width(), desktop.height()
         self.move(w//2 - self.width()//2, h//2 - self.height()//2)
 
         # use custom background color theme (only available when the mica effect is disabled)
-        self.setCustomBackgroundColor(*FluentBackgroundTheme.DEFAULT_BLUE)
+        self.setCustomBackgroundColor(*FluentBackgroundTheme.DEFAULT_BLUE) #*FluentBackgroundTheme.DEFAULT_BLUE
         # self.setMicaEffectEnabled(False)
 
         # set the minimum window width that allows the navigation panel to be expanded

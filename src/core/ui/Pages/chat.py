@@ -28,6 +28,7 @@ from PyQt6.QtWidgets import (
     QScrollArea,
 )
 from PyQt6.QtCore import Qt, QPropertyAnimation, QEasingCurve, QTimer
+from qfluentwidgets import SmoothScrollArea
 
 class BubbleLabel(QLabel):
     def __init__(self, text, parent=None, is_user=False):
@@ -71,7 +72,7 @@ class ChatWindow(QFrame):
         self.setLayout(main_layout)
 
         # Scrolling area for messages
-        self.scroll_area = QScrollArea()
+        self.scroll_area = SmoothScrollArea()
         self.scroll_area.setWidgetResizable(True)
         main_layout.addWidget(self.scroll_area)
 
@@ -121,7 +122,7 @@ class ChatWidget(QFrame):
 
     def __init__(self, text: str, parent=None):
         super().__init__(parent=parent)
-        self.label = SubtitleLabel(text, self)
+        #self.label = SubtitleLabel(text, self)
         self.hBoxLayout = QHBoxLayout(self)
         # Main chat window frame
         self.chat_window_frame = QFrame(self)
@@ -133,6 +134,7 @@ class ChatWidget(QFrame):
 
         # Chat history display
         self.chat_history_display = ChatWindow() #QLabel(self)
+        self.chat_history_display.setFixedSize(600, 688)
         #self.chat_history_display.setText("Chat history will be displayed here.")
         self.chat_history_display.setStyleSheet("color: #303030; overflow-y: auto; padding: 10px; font-size: 14px;")
         self.chat_window_layout.addWidget(self.chat_history_display)
@@ -150,11 +152,11 @@ class ChatWidget(QFrame):
         self.send_button = PushButton("Send", self)
         self.send_button.setFixedSize(QSize(100, 30))
         self.send_button.setStyleSheet("background-color: #20A3DD; color: white; border: 0px; border-radius: 5px; padding: 5px 10px; font-size: 12px;")
-        self.send_button.clicked.connect(self.chat_history_display.send_message)  # Connect to send button function
+        self.send_button.clicked.connect(lambda: self.chat_history_display.send_message(self.user_input_textbox.text()))  # Connect to send button function
         self.user_input_frame.addWidget(self.send_button)
 
         self.chat_window_layout.addLayout(self.user_input_frame)
         self.chat_window_frame.setLayout(self.chat_window_layout)
-        self.label.setAlignment(Qt.AlignmentFlag.AlignCenter)
+        #self.label.setAlignment(Qt.AlignmentFlag.AlignCenter)
         self.hBoxLayout.addWidget(self.chat_window_frame, 1, Qt.AlignmentFlag.AlignCenter)
         self.setObjectName(text.replace(' ', '-'))
