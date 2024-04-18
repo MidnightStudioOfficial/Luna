@@ -3,12 +3,13 @@
   License: MIT
   Description: This is the main script that loads and connects everything
 """
-from core.ui.ui import ChatBotGUI
-import customtkinter as ctk
+from core.ui.ui import MainGUI
+import sys
 from os.path import join, dirname, realpath
 
-print("Importing loadingscreen")
-from core.ui.loadingscreen import SplashScreen
+from PyQt6.QtWidgets import QApplication, QSplashScreen, QLabel
+from PyQt6.QtGui import QPixmap
+from PyQt6.QtCore import Qt
 
 if __name__ == '__main__':
     """
@@ -19,26 +20,12 @@ if __name__ == '__main__':
 
     print('Creating GUI')
 
-    # Create the root window
-    root = ctk.CTk()
-
-    # Create and configure the splash screen
-    splash_screen = SplashScreen(root)
-    splash_screen.overrideredirect(True)
-    splash_screen.set_text("Creating Luna and training")
-    splash_screen.set_progress(50)
+    # Create the PyQt application
+    app = QApplication(sys.argv)
 
     print('Creating Luna and training')
 
-    # Create the ChatBotGUI object
-    gui = ChatBotGUI(root, splash_screen, image_path)
-
-    # Update the splash screen
-    splash_screen.set_text("Done")
-    splash_screen.set_progress(100)
-
-    # Destroy the splash screen
-    splash_screen.destroy()
-
-    # Start the main event loop
-    root.mainloop()
+    gui = MainGUI(image_path)
+  
+    gui.show()
+    sys.exit(app.exec())
