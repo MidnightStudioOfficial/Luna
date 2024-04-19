@@ -15,7 +15,6 @@ from PyQt6.QtCore import Qt
 from PyQt6.QtCore import QSize
 from PyQt6.QtGui import QIcon
 from PyQt6.QtWidgets import QApplication, QStackedWidget, QHBoxLayout, QLabel, QWidget, QVBoxLayout
-import sys
 from PyQt6.QtWidgets import (
     QApplication,
     QWidget,
